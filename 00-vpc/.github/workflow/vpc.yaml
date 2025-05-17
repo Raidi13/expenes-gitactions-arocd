@@ -1,0 +1,63 @@
+name : VPC Terraform 
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform Action (apply or destroy)'
+        required:  true
+        default: 'apply'
+        type: choice
+        options:
+          - apply 
+          - destroy
+
+env:
+  AWS_REGION: us-east-1
+  EXPENSE_DIR: 00-VPC
+
+jobs:
+  Terraform-vpc:
+    name: vpc Terraform
+    runs_on: ubuntu-latest
+    defaults:
+      runs: 
+      working-directory: ${{ env.EXPENSE_DIR}}
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: configure AWS Credentaials
+      uses: aws-actions/configure-aws-credentaials@v2
+      with: 
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID}}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACSESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+    
+    - name: Terraform Init
+      run: terraform init -reconfigure
+
+    - name: Terraform plan
+      if: ${{ github.event.inputs.actions == 'apply'}}
+      run: terraform plan -out=tfplan
+
+    - name: Terraform apply
+      if: ${{ github.event.inputs.actions == "apply"}}
+      run: terraform apply -auto-approve tfplan
+
+    - name: terraform Destory
+      if: ${{ github.event.inputs.action == "destory"}}
+      run: terraform destroy -auto-approve
+
+
+trigger-sg:
+  name: Trigger SG workflow
+  needs: Terraform-vpc
+  if: ${{ github.event.input.action == "apply"}}
+  uses: ./.github/workflows/sg.yaml
+  with:
+    action: apply

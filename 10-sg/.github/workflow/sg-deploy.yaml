@@ -1,0 +1,91 @@
+name: Terraform CI Pipeline
+#events to trigger the workflow
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Choose apply or destroy'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - destroy
+
+env:
+  AWS_REGION: us-east-1
+  EXPENSE_DIR: 10-sg
+
+jobs:
+  terraform-main:
+    name: Terraform Init & Plan/Apply
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init and Plan
+        run: |
+          cd $EXPENSE_DIR
+          terraform init -reconfigure
+          terraform plan -out=tfplan
+
+      - name: Terraform Apply/Destroy
+        run: |
+          cd $EXPENSE_DIR
+          if [[ "${{ github.event.inputs.action }}" == "apply" ]]; then
+            terraform apply tfplan
+          else
+            terraform destroy -auto-approve
+          fi
+
+  parallel-modules:
+    name: Deploy Additional Modules
+    if: ${{ github.event.inputs.action == 'apply' }}
+    needs: terraform-main
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        module: [20-bastion, 30-rds, 40-eks, 50-acm, 60-alb, 70-ecr, 80-cdn]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run Terraform for ${{ matrix.module }}
+        run: |
+          cd ${{ matrix.module }}
+          terraform init -reconfigure
+          terraform apply -auto-approve
+
+  cleanup:
+    name: Cleanup Workspace
+    if: always()
+    runs-on: ubuntu-latest
+    needs: [terraform-main, parallel-modules]
+    steps:
+      - name: Cleanup
+        run: echo "Workspace cleaned (no actual deletion needed in Actions)"
+
+      - name: Success Message
+        if: success()
+        run: echo "Pipeline completed successfully"
+
+      - name: Failure Message
+        if: failure()
+        run: echo "Pipeline failed "
