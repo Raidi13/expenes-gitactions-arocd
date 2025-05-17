@@ -11,7 +11,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  EXPENSE_DIR: 30-bastion
+  EXPENSE_DIR: 20-bastion
 
 jobs:
   terraform-bastion:
@@ -49,3 +49,20 @@ jobs:
     - name: Terraform Destroy
       if: ${{ inputs.action == 'destroy' }}
       run: terraform apply -auto-approve 
+
+   cleanup:
+    name: Cleanup Workspace
+    if: always()
+    runs-on: ubuntu-latest
+    needs: [terraform-main, parallel-modules]
+    steps:
+      - name: Cleanup
+        run: echo "Workspace cleaned (no actual deletion needed in Actions)"
+
+      - name: Success Message
+        if: success()
+        run: echo "Pipeline completed successfully"
+
+      - name: Failure Message
+        if: failure()
+        run: echo "Pipeline failed 

@@ -1,4 +1,4 @@
-name: Terraform-alb
+name: Terraform-RDS
 
 on:
   workflow_call:
@@ -11,11 +11,11 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  EXPENSE_DIR: 60-alb
+  EXPENSE_DIR: 30-rds
 
 jobs:
-  terraform-alb:
-    name: Terraform-alb
+  terraform-rds:
+    name: Terraform-rds
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -48,8 +48,8 @@ jobs:
     
     - name: Terraform Destroy
       if: ${{ inputs.action == 'destroy' }}
-      run: terraform apply -auto-approve
-
+      run: terraform apply -auto-approve 
+  
   cleanup:
     name: Cleanup Workspace
     if: always()
