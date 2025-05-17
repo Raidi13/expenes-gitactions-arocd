@@ -1,26 +1,25 @@
-name: Terraform CI Pipeline
+name: Terraform-SG
 #events to trigger the workflow
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       action:
         description: 'Choose apply or destroy'
         required: true
-        default: 'apply'
-        type: choice
-        options:
-          - apply
-          - destroy
+        #default: 'apply'
+        type: string
 
 env:
   AWS_REGION: us-east-1
   EXPENSE_DIR: 10-sg
 
 jobs:
-  terraform-main:
-    name: Terraform Init & Plan/Apply
+  terraform-sg:
+    name: Terraform vpc
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    defaults:
+      run: 
+        working-directory: ${{ env.EXPENSE_DIR}}
 
     steps:
       - name: Checkout code
